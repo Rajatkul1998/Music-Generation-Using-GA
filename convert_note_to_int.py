@@ -16,15 +16,16 @@ for song in notes:
 
 
 def convert_all_notes_int(final_notes,note_to_int):
-    sequence_length=10
+    sequence_length=20
     network_input=[]
     for i in range(0,len(final_notes)-sequence_length,sequence_length):
         sequence_list=[]
         sequence_in = final_notes[i:i+sequence_length]
-        for char in sequence_in:
-            c=note_to_int[char]
-            sequence_list.append(c)
-        network_input.append(sequence_list)  
+        if len(sequence_in)==sequence_length:
+            for char in sequence_in:
+                c=note_to_int[char]
+                sequence_list.append(c)
+            network_input.append(sequence_list)  
     return network_input 
 
 
