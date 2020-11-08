@@ -18,9 +18,9 @@ tensor_data=data.convert_to_tensor()
 
 dataloader=data.dataloader(tensor_data)
 
-gen = Generator(CONFIG.input_size,CONFIG.hidden_size,CONFIG.gen_output_size)
+gen = Generator(CONFIG.input_size,CONFIG.hidden_size,CONFIG.gen_output_size,CONFIG.n_layers)
 
-dis = Discriminator(CONFIG.gen_output_size,CONFIG.hidden_size,CONFIG.dis_output_size)
+dis = Discriminator(CONFIG.gen_output_size,CONFIG.hidden_size,CONFIG.dis_output_size,CONFIG.n_layers)
 
 criteriond1 = nn.BCELoss()
 optimizerd1 = optim.Adam(dis.parameters(), lr=0.001)
@@ -33,13 +33,20 @@ epochs = CONFIG.epochs
 epoch_dis_loss=[]
 epoch_gen_loss=[]
 for epoch in range(epochs):
+  dis.train()
+  gen.train()  
+  h_dis = dis.init_hidden(CONFIG.batch_size)
+  h_gen= gen.init_hidden(CONFIG.batch_size)
+
   generator_loss=[]
   discriminator_loss=[]
   for vec in dataloader:
+    h_discriminator = tuple([e.data for e in h_dis])  
+    h_generator=  tuple([e.data for e in h_gen])
     #Training of Discriminator
     dis.zero_grad()
     vec=torch.tensor(vec).to(torch.int64)
-    dis_real_out=dis(vec)
+    dis_real_out,h_discriminator=dis(vec,h_discriminator)
     dis_real_loss=criteriond1(dis_real_out,Data_functions.real_data_target(vec.size(0)))
 
     inp_fake_x_gen1=Data_functions.make_some_noise(vec.size(0))
@@ -47,9 +54,9 @@ for epoch in range(epochs):
     
     #print(inp_fake_x_gen1)
 
-    dis_inp_fake_x=gen(inp_fake_x_gen1)
+    dis_inp_fake_x,h_generator=gen(inp_fake_x_gen1,h_generator)
     dis_inp_fake_x=torch.tensor(dis_inp_fake_x).to(torch.int64)
-    dis_fake_out=dis(dis_inp_fake_x.detach())
+    dis_fake_out,h_discriminator=dis(dis_inp_fake_x.detach(),h_discriminator)
     dis_fake_loss=criteriond1(dis_fake_out,Data_functions.fake_data_target(vec.size(0)))
 
     lossD=dis_real_loss+dis_fake_loss
@@ -61,9 +68,9 @@ for epoch in range(epochs):
     #Training of Generator
     
     gen.zero_grad()
-    gen_out=gen(inp_fake_x_gen1)
+    gen_out,h_generator=gen(inp_fake_x_gen1,h_generator)
     gen_out=torch.tensor(gen_out).to(torch.int64)
-    dis_out = dis(gen_out)
+    dis_out ,h_discriminator= dis(gen_out,h_discriminator)
     gen_loss = criteriond2(dis_out,Data_functions.real_data_target(vec.size(0)))
     generator_loss.append(gen_loss.item())
     gen_loss.backward()
